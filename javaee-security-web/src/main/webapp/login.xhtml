@@ -7,7 +7,7 @@
     <title>Home!</title>
 </h:head>
 <h:body>
-    <form method="POST" action="j_security_check">
+    <h:form method="POST" action="j_security_check" id="">
         <h:panelGrid id="panel" columns="2" border="1" cellpadding="4" cellspacing="4">
             <h:outputLabel for="j_username" value="Username:" />
             <input type="text" name="j_username"/>
@@ -17,6 +17,6 @@
                 <input type="submit" value="Login"/>
             </h:panelGroup>
         </h:panelGrid>
-    </form>
+    </h:form>
 </h:body>
 </html>

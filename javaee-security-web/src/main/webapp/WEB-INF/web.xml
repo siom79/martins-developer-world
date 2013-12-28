@@ -37,7 +37,7 @@
 
     <security-constraint>
         <web-resource-collection>
-            <web-resource-name>Protected Area</web-resource-name>
+            <web-resource-name>pages</web-resource-name>
             <url-pattern>/pages/*</url-pattern>
             <http-method>PUT</http-method>
             <http-method>DELETE</http-method>
@@ -46,10 +46,27 @@
         </web-resource-collection>
         <auth-constraint>
             <role-name>security-role</role-name>
+            <role-name>protected-role</role-name>
+        </auth-constraint>
+    </security-constraint>
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>protected</web-resource-name>
+            <url-pattern>/pages/protected/*</url-pattern>
+            <http-method>PUT</http-method>
+            <http-method>DELETE</http-method>
+            <http-method>GET</http-method>
+            <http-method>POST</http-method>
+        </web-resource-collection>
+        <auth-constraint>
+            <role-name>protected-role</role-name>
         </auth-constraint>
     </security-constraint>
 
     <security-role>
         <role-name>security-role</role-name>
+    </security-role>
+    <security-role>
+        <role-name>protected-role</role-name>
     </security-role>
 </web-app>

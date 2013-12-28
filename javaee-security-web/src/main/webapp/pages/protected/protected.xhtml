@@ -4,14 +4,14 @@
       xmlns:f="http://java.sun.com/jsf/core"
       xmlns:h="http://java.sun.com/jsf/html">
 <h:head>
-    <title>Home!</title>
+    <title>Protected!</title>
 </h:head>
 <h:body>
-    <h2>Home!</h2>
-    <h:form id="homeForm">
+    <h2>Protected!</h2>
+    <h:form id="protectedForm">
         <h:panelGrid id="grid" columns="1">
-            <h:link value="Protected page" outcome="protected/protected" rendered="#{facesContext.externalContext.isUserInRole('protected-role')}"/>
-            <h:commandLink value="Logout" action="#{login.logout}"/>
+            <h:commandLink value="Call EJB" action="#{protectedEjb.protectedAction}"/>
+            <h:link  value="Home" outcome="/pages/home"/>
         </h:panelGrid>
     </h:form>
 </h:body>
