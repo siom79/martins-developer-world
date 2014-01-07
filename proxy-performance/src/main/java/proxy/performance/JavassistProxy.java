@@ -16,7 +16,7 @@ public class JavassistProxy {
         MethodHandler methodHandler = new MethodHandler() {
             @Override
             public Object invoke(Object self, Method overridden, Method proceed, Object[] args) throws Throwable {
-                return proceed.invoke(self, args);
+                return proceed.invoke(newInstance, args);
             }
         };
         ((ProxyObject)newInstance).setHandler(methodHandler);
