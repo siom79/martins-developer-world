@@ -7,7 +7,7 @@ public class Example implements IExample {
         return name;
     }
 
-    public void setName(@NotNull String name) {
+    public void setName(String name) {
         this.name = name;
     }
 }
