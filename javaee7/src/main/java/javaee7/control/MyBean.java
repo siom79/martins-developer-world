@@ -19,7 +19,6 @@ import java.util.concurrent.Future;
 
 @Stateless
 public class MyBean {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MyBean.class);
     @Resource
     ManagedExecutorService managedExecutorService;
     @PersistenceContext
@@ -28,7 +27,6 @@ public class MyBean {
     Instance<MyTask> myTaskInstance;
 
     public void executeAsync() throws ExecutionException, InterruptedException {
-        List<Future> futures = new LinkedList<>();
         for(int i=0; i<10; i++) {
             MyTask myTask = myTaskInstance.get();
             this.managedExecutorService.submit(myTask);
@@ -37,5 +35,11 @@ public class MyBean {
 
     public List<MyEntity> list() {
         return entityManager.createQuery("select m from MyEntity m", MyEntity.class).getResultList();
+    }
+
+    public void persit() {
+        MyEntity myEntity = new MyEntity();
+        myEntity.setName("name");
+        entityManager.persist(myEntity);
     }
 }

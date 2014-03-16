@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Resource;
 import javax.ejb.Stateless;
+import javax.inject.Inject;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.persistence.EntityManager;
@@ -18,10 +19,12 @@ public class MyTask implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(MyTask.class);
     @PersistenceContext
     EntityManager entityManager;
+    @Inject
+    MyBean myBean;
 
     @Override
     public void run() {
-        UserTransaction userTransaction = null;
+        /*UserTransaction userTransaction = null;
         try {
             userTransaction = lookup();
             userTransaction.begin();
@@ -37,7 +40,8 @@ public class MyTask implements Runnable {
             } catch (SystemException e1) {
                 LOGGER.error("Failed to rollback transaction: "+e1.getMessage());
             }
-        }
+        }*/
+        myBean.persit();
     }
 
     private UserTransaction lookup() throws NamingException {
