@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.logging.Logger;
 
 public class JsonPExample {
@@ -16,14 +17,14 @@ public class JsonPExample {
     }
 
     private static void readJsonFile() {
-        try (JsonReader jsonReader = Json.createReader(new FileReader("myData.json"))) {
+        try (JsonReader jsonReader = Json.createReader(new FileReader(Paths.get(System.getProperty("user.dir"), "target/myData.json").toString()))) {
             JsonStructure jsonStructure = jsonReader.read();
             JsonValue.ValueType valueType = jsonStructure.getValueType();
             if (valueType == JsonValue.ValueType.OBJECT) {
                 JsonObject jsonObject = (JsonObject) jsonStructure;
                 JsonValue firstName = jsonObject.get("firstName");
                 LOGGER.info("firstName=" + firstName);
-                JsonValue emailAddresses = jsonObject.get("emailAddresses");
+                JsonValue emailAddresses = jsonObject.get("phoneNumbers");
                 if (emailAddresses.getValueType() == JsonValue.ValueType.ARRAY) {
                     JsonArray jsonArray = (JsonArray) emailAddresses;
                     for (int i = 0; i < jsonArray.size(); i++) {
@@ -42,13 +43,13 @@ public class JsonPExample {
     private static void createJsonFile() {
         JsonObject model = Json.createObjectBuilder()
                 .add("firstName", "Martin")
-                .add("emailAddresses", Json.createArrayBuilder()
+                .add("phoneNumbers", Json.createArrayBuilder()
                         .add(Json.createObjectBuilder()
-                                .add("number", "+49 1234 56789"))
+                                .add("mobile", "1234 56789"))
                         .add(Json.createObjectBuilder()
-                                .add("number", "+49 2345 67890")))
+                                .add("home", "2345 67890")))
                 .build();
-        try (JsonWriter jsonWriter = Json.createWriter(new FileWriter("myData.json"))) {
+        try (JsonWriter jsonWriter = Json.createWriter(new FileWriter(Paths.get(System.getProperty("user.dir"), "target/myData.json").toString()))) {
             jsonWriter.write(model);
         } catch (IOException e) {
             LOGGER.severe("Failed to create file: " + e.getMessage());
