@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import javax.json.*;
 import javax.json.stream.JsonGenerator;
+import javax.json.stream.JsonParser;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -43,32 +44,29 @@ public class JsonPPerfTest {
     @Test
     public void readJson() throws FileNotFoundException {
         long start = System.currentTimeMillis();
-        try (JsonReader jsonReader = Json.createReader(new FileReader(Paths.get(System.getProperty("user.dir"), "target/myStreamPerf.json").toString()))) {
-            JsonStructure jsonStructure = jsonReader.read();
-            JsonValue.ValueType valueType = jsonStructure.getValueType();
-            if (valueType == JsonValue.ValueType.ARRAY) {
-                JsonArray jsonArray = (JsonArray) jsonStructure;
-                for (int i = 0; i < jsonArray.size(); i++) {
-                    JsonValue jsonValue = jsonArray.get(i);
-                    if (jsonValue.getValueType() == JsonValue.ValueType.OBJECT) {
-                        JsonObject jsonObject = (JsonObject) jsonValue;
-                        JsonValue firstName = jsonObject.get("firstName");
-                        JsonValue emailAddresses = jsonObject.get("phoneNumbers");
-                        if (emailAddresses.getValueType() == JsonValue.ValueType.ARRAY) {
-                            JsonArray emailArray = (JsonArray) emailAddresses;
-                            for (int j = 0; j < emailArray.size(); j++) {
-                                jsonArray.get(j);
-                            }
-                        }
-                    } else {
-                        LOGGER.warning("Object is not of type " + JsonValue.ValueType.OBJECT + ": " + valueType);
-                    }
+        try (FileReader fileReader = new FileReader(Paths.get(System.getProperty("user.dir"), "target/myStreamPerf.json").toString())) {
+            JsonParser parser = Json.createParser(fileReader);
+            while (parser.hasNext()) {
+                JsonParser.Event event = parser.next();
+                switch (event) {
+                    case START_OBJECT:
+                        break;
+                    case END_OBJECT:
+                        break;
+                    case START_ARRAY:
+                        break;
+                    case END_ARRAY:
+                        break;
+                    case KEY_NAME:
+                        break;
+                    case VALUE_STRING:
+                        break;
+                    case VALUE_NUMBER:
+                        break;
                 }
-            } else {
-                LOGGER.warning("First object is not of type " + JsonValue.ValueType.ARRAY);
             }
-        } catch (FileNotFoundException e) {
-            LOGGER.severe("Failed to open file: " + e.getMessage());
+        } catch (IOException e) {
+            LOGGER.severe("Failed to read file: " + e.getMessage());
         }
         LOGGER.info("read duration=" + (System.currentTimeMillis() - start));
     }

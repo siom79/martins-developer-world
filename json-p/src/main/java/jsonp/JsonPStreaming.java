@@ -18,17 +18,17 @@ public class JsonPStreaming {
     }
 
     private static void readJsonStream() {
-        try (FileReader fileReader = new FileReader(Paths.get(System.getProperty("user.dir"), "target/myStream.json").toString())) {
-            JsonParser parser = Json.createParser(fileReader);
-            while (parser.hasNext()) {
-                JsonParser.Event event = parser.next();
-                switch (event) {
-                    case START_OBJECT:
-                        LOGGER.info("{");
-                        break;
-                    case END_OBJECT:
-                        LOGGER.info("}");
-                        break;
+            try (FileReader fileReader = new FileReader(Paths.get(System.getProperty("user.dir"), "target/myStream.json").toString())) {
+                JsonParser parser = Json.createParser(fileReader);
+                while (parser.hasNext()) {
+                    JsonParser.Event event = parser.next();
+                    switch (event) {
+                        case START_OBJECT:
+                            LOGGER.info("{");
+                            break;
+                        case END_OBJECT:
+                            LOGGER.info("}");
+                            break;
                     case START_ARRAY:
                         LOGGER.info("[");
                         break;
