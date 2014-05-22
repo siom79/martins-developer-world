@@ -35,7 +35,6 @@ public class StaxPerfTest {
                 writer.writeCharacters("234567890");
                 writer.writeEndElement();
                 writer.writeEndElement();
-                writer.flush();
             }
             writer.writeEndElement();
             writer.writeEndDocument();
