@@ -1,0 +1,144 @@
+Using @NamedEntityGraph to load JPA entities more selectively
+-------------------------------------------------------------
+
+Everybody who has worked some time with an ORM solution knows the N+1 problem. It happens when you set the fetchType for some @OneToMany relation to lazy, in order to load the child entities only when the Set/List is accessed. Let's assume we have a Customer entity with two relations: a set of orders and a set of addresses for each customer.
+
+[code language="java"]
+@OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+private Set<OrderEntity> orders;
+
+@OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+private Set<AddressEntity> addresses;
+[/code]
+
+To load all customers, we can know issue the following JPQL statement and afterwards load all orders for each customer:
+
+[code language="java"]
+List<CustomerEntity> resultList = entityManager.createQuery("SELECT c FROM CustomerEntity AS c", CustomerEntity.class).getResultList();
+for(CustomerEntity customerEntity : resultList) {
+    Set<OrderEntity> orders = customerEntity.getOrders();
+    for(OrderEntity orderEntity : orders) {
+	...
+    }
+}
+[/code]
+
+Hibernate 4.3.5 (as shipped with JBoss AS Wildfily 8.1.0CR2) will generate the following series of SQL statements out of it for only two(!) customers in the database:
+
+[code language="sql"]
+Hibernate: 
+     select
+         customeren0_.id as id1_1_,
+         customeren0_.name as name2_1_,
+         customeren0_.numberOfPurchases as numberOf3_1_ 
+     from
+         CustomerEntity customeren0_
+Hibernate: 
+     select
+         orders0_.CUSTOMER_ID as CUSTOMER4_1_0_,
+         orders0_.id as id1_2_0_,
+         orders0_.id as id1_2_1_,
+         orders0_.campaignId as campaign2_2_1_,
+         orders0_.CUSTOMER_ID as CUSTOMER4_2_1_,
+         orders0_.timestamp as timestam3_2_1_ 
+     from
+         OrderEntity orders0_ 
+     where
+         orders0_.CUSTOMER_ID=?
+Hibernate: 
+     select
+         orders0_.CUSTOMER_ID as CUSTOMER4_1_0_,
+         orders0_.id as id1_2_0_,
+         orders0_.id as id1_2_1_,
+         orders0_.campaignId as campaign2_2_1_,
+         orders0_.CUSTOMER_ID as CUSTOMER4_2_1_,
+         orders0_.timestamp as timestam3_2_1_ 
+     from
+         OrderEntity orders0_ 
+     where
+         orders0_.CUSTOMER_ID=?
+[/code]
+
+As we can see we first find a query that selects all customers from the table CustomerEntity. The following two selects fetch now the orders for each customer we have loaded in the first query. When we image that we would have instead of only two customers now 100 customers, we will get 101 query. One initial query to load all customers and then for each of the 100 customers an additional query for the orders. That is the reason why this problem is called N+1.
+
+A commona idiom to solve this problem is to force the ORM to generate an inner join query. In JPQL this can be done by using the JOIN FETCH clause like demonstrated in the following code snippet:
+
+[code language="java"]
+entityManager.createQuery("SELECT c FROM CustomerEntity AS c JOIN FETCH c.orders AS o", CustomerEntity.class).getResultList();
+[/code]
+
+As expected the ORM now generates an inner join with the OrderEntity table and therewith only needs one SQL statement to load all data:
+
+[code language="sql"]
+select
+    customeren0_.id as id1_0_0_,
+    orders1_.id as id1_1_1_,
+    customeren0_.name as name2_0_0_,
+    orders1_.campaignId as campaign2_1_1_,
+    orders1_.CUSTOMER_ID as CUSTOMER4_1_1_,
+    orders1_.timestamp as timestam3_1_1_,
+    orders1_.CUSTOMER_ID as CUSTOMER4_0_0__,
+    orders1_.id as id1_1_0__
+from
+    CustomerEntity customeren0_
+inner join
+    OrderEntity orders1_
+        on customeren0_.id=orders1_.CUSTOMER_ID
+[/code]
+
+In situations where you know that you will have to load all orders for each customer, the JOIN FETCH clause minimizes the number of SQL statements from N+1 to 1. This comes of course with the downside that you now transfer for all orders of one customer the customer data again and again (due to the additional customer columns in the query).
+
+The JPA specification introduces with version 2.1 so called NamedEntityGraphs. This annotation lets you describe the graph a JPQL query should load in more detail than a JOIN FETCH clause can do and therewith is another solution to the N+1 problem. The following example demonstrates a NamedEntityGraph for our customer entity that is supposed to load only the name of the customer and its orders. The orders are described in the subgraph ordersGraph in more detail. Here we see that we only want to load the fields id and campaignId of the customer.
+
+[code language="java"]
+@NamedEntityGraph(
+        name = "CustomersWithOrderId",
+        attributeNodes = {
+                @NamedAttributeNode(value = "name"),
+                @NamedAttributeNode(value = "orders", subgraph = "ordersGraph")
+        },
+        subgraphs = {
+                @NamedSubgraph(
+                        name = "ordersGraph",
+                        attributeNodes = {
+                                @NamedAttributeNode(value = "id"),
+                                @NamedAttributeNode(value = "campaignId")
+                        }
+                )
+        }
+)
+[/code]
+
+The NamedEntityGraph is given as a hint to the JPQL query, after it has been loaded via EntityManager using its name:
+
+[code language="java"]
+EntityGraph entityGraph = entityManager.getEntityGraph("CustomersWithOrderId");
+entityManager.createQuery("SELECT c FROM CustomerEntity AS c", CustomerEntity.class).setHint("javax.persistence.fetchgraph", entityGraph).getResultList();
+[/code]
+
+Hibernate supports the @NamedEntityGraph annotation since version 4.3.0.CR1 (https://hibernate.atlassian.net/browse/HHH-8285) and creates the following SQL statement for the JPQL query shown above:
+
+[code language="sql"]
+Hibernate: 
+    select
+        customeren0_.id as id1_1_0_,
+        orders1_.id as id1_2_1_,
+        customeren0_.name as name2_1_0_,
+        customeren0_.numberOfPurchases as numberOf3_1_0_,
+        orders1_.campaignId as campaign2_2_1_,
+        orders1_.CUSTOMER_ID as CUSTOMER4_2_1_,
+        orders1_.timestamp as timestam3_2_1_,
+        orders1_.CUSTOMER_ID as CUSTOMER4_1_0__,
+        orders1_.id as id1_2_0__ 
+    from
+        CustomerEntity customeren0_ 
+    left outer join
+        OrderEntity orders1_ 
+            on customeren0_.id=orders1_.CUSTOMER_ID
+[/code]
+
+We see that Hibernate does not issue N+1 queries but that instead the @NamedEntityGraph annotation has forced Hibernate to load the orders per left outer join. This is of course a subtile difference to the FETCH JOIN clause, where Hibernate created an inner join. The left outer join would also load orders for which no customer exist. In our example this is not crucial, as we have set the @OneToMany relation to CascadeType.ALL and therewith a deletion of a customer would also delete all orders. 
+
+Interestingly is also that Hibernate loads more than the specified attributes for the tables CustomerEntity and OrderEntity...
+
+Conclusion: We have seen that with JPA 2.1 we have two solutions for the N+1 problem: We can either use the FETCH JOIN clause to eagerly fetch a @OneToMany relation, which results in an inner join, or we can use @NamedEntityGraph feature that lets us specify which @OneToMany relation to load via left outer join.
