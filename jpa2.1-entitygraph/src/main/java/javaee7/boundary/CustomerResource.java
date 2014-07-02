@@ -42,4 +42,12 @@ public class CustomerResource {
         long id = customerBean.persist();
         return "<html><h1>persist() successful: " + id + "</h1></html>";
     }
+
+    @Path("deleteOrders")
+    @GET
+    @Produces("text/html")
+    public String deleteOrders() {
+        int deleteOrders = customerBean.deleteOrders();
+        return "<html><h1>deleteOrders() successful: " + deleteOrders + "</h1></html>";
+    }
 }

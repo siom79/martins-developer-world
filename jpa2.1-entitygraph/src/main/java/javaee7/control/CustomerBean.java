@@ -81,4 +81,8 @@ public class CustomerBean {
         CustomerEntity mergedCustomer = entityManager.merge(customerEntity);
         return mergedCustomer.getId();
     }
+
+    public int deleteOrders() {
+        return entityManager.createQuery("delete from "+OrderEntity.class.getSimpleName()).executeUpdate();
+    }
 }
