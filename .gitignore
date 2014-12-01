@@ -6,3 +6,7 @@ target
 .settings
 *$*
 *~
+
+.ceylon/
+.exploded/
+modules/
