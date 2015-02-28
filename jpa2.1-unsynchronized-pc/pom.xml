@@ -1,0 +1,55 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.wordpress.martinsdeveloperworld</groupId>
+    <artifactId>jpa2.1-unsychronized-pc</artifactId>
+    <packaging>war</packaging>
+    <version>1.0-SNAPSHOT</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>javax</groupId>
+            <artifactId>javaee-api</artifactId>
+            <version>7.0</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>localDeploy</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>1.7</version>
+                        <executions>
+                            <execution>
+                                <phase>install</phase>
+                                <configuration>
+                                    <target>
+                                        <property environment="env"/>
+                                        <delete file="${env.JBOSS_HOME}/standalone/deployments/${project.artifactId}.ear.deployed"
+                                                failonerror="false"/>
+                                        <delete file="${env.JBOSS_HOME}/standalone/deployments/${project.artifactId}.ear.failed"
+                                                failonerror="false"/>
+                                        <copy file="target/${project.artifactId}.war"
+                                              tofile="${env.JBOSS_HOME}/standalone/deployments/${project.artifactId}.war"/>
+                                        <touch file="${env.JBOSS_HOME}/standalone/deployments/${project.artifactId}.war.dodeploy"/>
+                                    </target>
+                                </configuration>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

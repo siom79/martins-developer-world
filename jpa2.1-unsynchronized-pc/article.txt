@@ -1,0 +1,105 @@
+JPA 2.1: Unsynchronized persistence context
+-------------------------------------------
+
+The JPA version 2.1 brings a new way how to handle the synchronization between the persistence context and the current JTA transaction as well as the resource manager. The term resource manager comes from the Java Transaction API (http://en.wikipedia.org/wiki/Java_Transaction_API) and denotes a component that manipulates one resources (for example a concrete database that is manipulated by using its JDBC driver). Per default a container-managed persistence context is of type <code>SynchronizationType.SYNCHRONIZED</code>, i.e. this persistence context automatically joins the current JTA transaction and updates to the persistence context are propagated to the underlying resource manager.
+
+By creating a persistence context that is of type <code>SynchronizationType.UNSYNCHRONIZED</code> the automatic join of the transaction as well as the propgation of updates to the resource manager is disabled. In order to join the current JTA transaction the code has to call the method <code>joinTransaction()</code> of the <code>EntityManager</code>. This way the EntityManager's persistence context gets enlisted in the transaction and is registered for subsequent notifications. Once the transaction is commited or rolled back the persistence context leaves the transaction and is not attached to any further transaction until the method <code>joinTransaction()</code> is called once again for a new JTA transaction.
+
+Before JPA 2.1 one could implement a conversation that spans multiple method calls with a <code>@Stateful</code> session bean as described by Adam Bien here (...):
+
+[code language="java"]
+@Stateful
+@TransactionAttribute(TransactionAttributeType.NEVER)
+public class Controller {
+	@PersistenceContext(type = PersistenceContextType.EXTENDED)
+	EntityManager entityManager;
+
+	public Person persist() {
+		Person p = new Person();
+		p.setFirstName("Martin");
+		p.setLastName("Developer");
+		return entityManager.merge(p);
+	}
+
+	public List<Person> list() {
+		return entityManager.createQuery("from Person", Person.class).getResultList();
+	}
+
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+	public void commit() {
+		
+	}
+}
+[/code]
+
+The persistence context is of type <code>EXTENDED</code> and therefore lives longer than the JTA transactions it is attached to. As the persistence context is per default also of type <code>SYNCHRONIZED</code> it will automatically join any transaction that is running when any of the session bean's methods are called. In order to prevent that to happen for most of the bean's methods, the annotation <code>@TransactionAttribute(TransactionAttributeType.NEVER)</code> tells the container to not open any transaction for this bean. Therefore the methods <code>persist()</code> and <code>list()</code> run without a transaction. This behavior is different for the method <code>commit()</code>. Here the annotation <code>@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)</code> tells the container to create a new transaction before the method is called and therefore the bean's EntityManager will join it automatically.
+
+With the new type <code>SynchronizationType.UNSYNCHRONIZED</code> the code above can be rewritten as depicted in the following listing:
+
+[code language="java"]
+@Stateful
+public class Controller {
+	@PersistenceContext(type = PersistenceContextType.EXTENDED, 
+		synchronization = SynchronizationType.UNSYNCHRONIZED)
+	EntityManager entityManager;
+
+	public Person persist() {
+		Person p = new Person();
+		p.setFirstName("Martin");
+		p.setLastName("Developer");
+		return entityManager.merge(p);
+	}
+
+	public List<Person> list() {
+		return entityManager.createQuery("from Person", Person.class).getResultList();
+	}
+
+	public void commit() {
+		entityManager.joinTransaction();
+	}
+}
+[/code]
+
+Now that the EntityManager won't automatically join the current transaction, we can omit the <code>@TransactionAttribute</code> annotations. Any running transaction won't have an impact on the EntityManager until we explicitly join it. This is now done in the method <code>commit()</code> and could even be done on the base on some dynamic logic.
+
+In order to test the implementation above, we utilize a simple REST resource:
+
+[code language="java"]
+@Path("rest")
+@Produces("text/json")
+@SessionScoped
+public class RestResource implements Serializable {
+	@Inject
+	private Controller controller;
+
+	@GET
+	@Path("persist")
+	public Person persist(@Context HttpServletRequest request) {
+		return controller.persist();
+	}
+
+	@GET
+	@Path("list")
+	public List<Person> list() {
+		return controller.list();
+	}
+
+	@GET
+	@Path("commit")
+	public void commit() {
+		controller.commit();
+	}
+}
+[/code]
+
+This resource provides methods to persist a person, list all persisted person and to commit the current changes. As we are going to use a stateful session bean, we annotate the resource with <code>@SessionScoped</code> and let the container inject the <code>Controller</code> bean.
+
+By calling the following URL after the application has been deployed to some Java EE container, a new person gets added to the unsynchronized persistence context, but is not stored in the database.
+
+[code]
+http://localhost:8080/jpa2.1-unsychronized-pc/rest/persist
+[/code]
+
+Even a call of the <ode>list()</code> method won't return the newly added person. Only by finally synchronizing the changes in the persistence context to the underlying resource with a call of <code>commit()</code>, the insert statement is send to the underlying database.
+
+<strong>Conclusion</strong>: The new <code>UNSYNCHRONIZED</code> mode of the persistence context lets us implement conversations over more than one method invocation of a stateful session bean with the flexibility to join a JTA transaction dynamically based on our application logic without the need of any annotation magic.
