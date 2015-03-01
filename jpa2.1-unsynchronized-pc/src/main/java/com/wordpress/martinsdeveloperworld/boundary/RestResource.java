@@ -3,6 +3,7 @@ package com.wordpress.martinsdeveloperworld.boundary;
 import com.wordpress.martinsdeveloperworld.control.Controller;
 import com.wordpress.martinsdeveloperworld.entity.Person;
 
+import javax.annotation.PreDestroy;
 import javax.enterprise.context.SessionScoped;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -36,5 +37,10 @@ public class RestResource implements Serializable {
 	@Path("commit")
 	public void commit() {
 		controller.commit();
+	}
+
+	@PreDestroy
+	public void preDestroy() {
+
 	}
 }

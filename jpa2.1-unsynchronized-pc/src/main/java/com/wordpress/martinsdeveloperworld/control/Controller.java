@@ -2,6 +2,7 @@ package com.wordpress.martinsdeveloperworld.control;
 
 import com.wordpress.martinsdeveloperworld.entity.Person;
 
+import javax.ejb.Remove;
 import javax.ejb.Stateful;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
@@ -29,5 +30,10 @@ public class Controller {
 
 	public void commit() {
 		entityManager.joinTransaction();
+	}
+
+	@Remove
+	public void remove() {
+
 	}
 }
