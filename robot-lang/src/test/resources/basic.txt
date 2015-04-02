@@ -1,0 +1,9 @@
+/*
+* A simple example demonstrating the basic features.
+*/
+delay 300;
+delay 400;
+mouseMove 20,30;
+//createScreenCapture 100,100,200,200 file=/home/test/robot-lang;
+mouseClick button1;
+keyboardInput "Test";
