@@ -1,0 +1,108 @@
+Some time ago we have seen how to use Apache Drill to query data that resides in CSV and parquet files. The SQL interface provided by Apache Drill is provided by another Apache project called "Calcite" (http://calcite.incubator.apache.org/). This project provides a SQL parser, JDBC driver and query optimizer that can be connected to different data stores via custom adapters.
+
+In this article we are investigating how to use the <code>ReflectiveSchema</code> factory to create an in-memory database with SQL interface.
+
+The schemas that the SQL parser should operate on can be specified either programmatically or with the means of a JSON file. Such JSON file look for our example like the following one:
+
+[code language="json"]
+{
+  version: '1.0',
+  defaultSchema: 'Persons',
+  schemas: [
+    {
+      name: 'Persons',
+      type: "custom",
+      factory: "org.apache.calcite.adapter.java.ReflectiveSchema$Factory",
+      operand: {
+        class: "com.wordpress.martinsdeveloperworld.calcite.Schema",
+        staticMethod: "getInstance"
+      }
+    }
+  ]
+}
+[/code]
+
+The only schema we have specified with the file above is called "Persons" and is at the same time our default schema. The factory defined with the correspondent field name has to implement a method that returns an instance of the Calcite class <code>Schema</code>. Here we choose the <code>ReflectiveSchema</code> that ships with Calcite and that exposes the public fields of a Java object as tables. The class that generates this Java object is given through the operand's field <code>class</code> and has to provide a factory method that returns this object (here: <code>getInstance</code>).
+
+The <code>Schema</code> class mentioned above looks in our introductory article like this:
+
+[code language="java"]
+public class Schema {
+	private static final Logger LOGGER = Logger.getLogger(Schema.class.getName());
+	public Person[] persons;
+	public Address[] addresses;
+
+	public static Schema getInstance() {
+		LOGGER.log(Level.INFO, "Creating schema...");
+		DataFactory dataFactory = new DataFactory(0);
+		int numberOfPersons = 10000000;
+		Schema schema = new Schema();
+		schema.persons = new Person[numberOfPersons];
+		schema.addresses = new Address[numberOfPersons];
+		for (int i = 0; i < numberOfPersons; i++) {
+			Person person = dataFactory.getNextPerson(i);
+			schema.persons[i] = person;
+			schema.addresses[i] = dataFactory.getNextAddress(person);
+		}
+		LOGGER.log(Level.INFO, "Created schema.");
+		return schema;
+	}
+}
+[/code]
+
+The two public fields <code>persons</code> and <code>addresses</code> will become the tables of our SQL schema. We initialize these two arrays with ten million persons and addresses, one person having exactly one address. The artificially generated <code>id</code> of the person is used as foreign key in the <code>addresses</code> table:
+
+[code language="java"]
+public class Person {
+	public long id;
+	public String firstName;
+	public String lastName;
+}
+public class Address {
+	public long personId;
+	public String city;
+}
+[/code]
+
+The <code>DataFactory</code> creates a new person and randomly assigns a first and last name for each person as well as a city for each address. These values are taken from a collection of the most popular 200 first and last names in the US and the 100 biggest cities.
+
+Now that we have created the schema and populated the tables with ten million rows, we can start to query them. The code to load the JDBC driver and to establish a connection to the data source looks like this one:
+
+[code language="java"]
+Class.forName("org.apache.calcite.jdbc.Driver");
+Properties info = new Properties();
+info.setProperty("lex", "JAVA");
+try (Connection connection = 
+	DriverManager.getConnection("jdbc:calcite:model=target/classes/model.json", info)) {
+	...
+}
+[/code]
+
+The JSON file, that is referred to as model within the JDBC URL, is the one shown at the beginning of this article. First we want to know how many people have the last name 'Smith':
+
+[code language="java"]
+String query = "select count(*) from persons p where p.lastName = 'Smith'";
+try (Statement statement = connection.createStatement();
+	ResultSet resultSet = statement.executeQuery(query)) {
+	int count = 0;
+	while (resultSet.next()) {
+		count = resultSet.getInt(1);
+	}
+	LOGGER.log(Level.INFO, "Result has " + count + " rows.");
+} catch (Exception e) {
+	LOGGER.log(Level.SEVERE, "Query failed: " + e.getMessage(), e);
+}
+[/code]
+
+When we modify the code above such that the query gets executed in a loop with randomly chosen last names from the collection, we can measure the average execution time of it. On my machine this yields about 105,333 ms over 100 iterations. Not bad!
+
+But we also want to know how many people of these live in Chicago:
+
+[code language="java"]
+String query = "select count(*) from persons p " +
+	" inner join addresses a on a.personId = p.id " +
+	" where a.city = 'Chicago' and p.lastName = 'Smith'";
+...
+[/code]
+
+Executed with different, randomly chosen last names and cities, this query executes in average in about 341,896 ms. For a join query on two tables with ten million rows each also not bad.
